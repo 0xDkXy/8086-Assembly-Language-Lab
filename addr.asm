@@ -18,10 +18,13 @@ data segment
     index_1 db '1. new item',0ah, '$'
     index_2 db '2. search name', 0ah, '$'
     index_3 db '3. EXIT', 0ah, '$'
+    index_4 db '4. print all list', 0ah, '$'
     name_query db '? name:', 0ah, '$'
     name_ db 'please input name:', 0ah, '$'
     tel_ db 'please input phone number:', 0ah, '$'
-    title_bar db 'name.', 09h, 'tel.', 0ah, '$'
+    title_bar db 'name.', 09h, 09h, 09h, 'tel.', 0ah, '$'
+    search_buffer person <>
+    not_found_str db 'Name not found!', 0ah, '$'
 data ends
 
 stack segment
@@ -40,7 +43,6 @@ start:
 
     ;main loop
 main_loop:
-    call print_all_list
     lea ax, index_1
     push ax
     call print_str
@@ -52,19 +54,32 @@ main_loop:
     lea ax, index_3
     push ax
     call print_str
+
+    lea ax, index_4
+    push ax
+    call print_str
     
     call get_char
     call endl
+
     cmp al, 033h
     je _end
+
     cmp al, 031h
     jne onelabel
     call add_item
     call sort_list
     jmp main_loop
-    onelabel:
-    call search_name
 
+    onelabel:
+    cmp al, 034h
+    jne search_label
+    call print_all_list
+
+    jmp main_loop
+    
+    search_label:
+    call search_name
     jmp main_loop
 
 
@@ -351,8 +366,129 @@ swap_person:
 
 
 search_name:
+    push ax
+    push bx
+    push cx
+    push dx
+
+
+    lea ax, name_query
+    push ax
+    call print_str
+    call get_str
+
+    lea bx, title_bar
+    push bx
+    call print_str
+
+    lea bx, search_buffer
+    push bx
+    call clear_person
+
+    mov cx, 0
+    lea bx, input_buffer
+    inc bx
+    mov cl, [bx]
+    inc bx
+    push bx
+
+    lea bx, search_buffer
+    push bx
+    push cx
+    call mov_data
+
+    lea bx, number
+    mov cx, 0
+    mov cl, [bx]
+    lea dx, store_list
+    lea bx, search_buffer
+    search_name_loop:
+        push bx
+        push dx
+        call compare_name_equal
+        pop ax
+        cmp ax, 1
+
+            jne goon_0
+            push dx
+            mov ax, 28
+            push ax
+            call copy_to_output_buffer
+            lea ax, output_buffer
+            push ax
+            call print_str
+            call endl
+        
+        goon_0:
+        add dx, 28
+
+    loop search_name_loop
+    
+    pop dx
+    pop cx
+    pop bx
+    pop ax
     ret
 ;search_name end
+
+compare_name_equal:
+    push bp
+    mov bp, sp
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+
+    mov si, [bp+4]
+    mov di, [bp+6]
+    mov cx, 20
+    mov ax, 1
+    compare_name_equal_loop:
+        mov al, [si]
+        mov ah, [di]
+        cmp al, ah
+        je continue_0
+            mov ax, 0
+            jmp out_label
+        continue_0:
+        inc si
+        inc di
+    loop compare_name_equal_loop
+    mov ax, 1 
+    out_label:
+    mov [bp+6], ax
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    pop bp
+    ret 2
+;compare_name_equal end
+
+clear_person:
+    push bp
+    mov bp, sp
+    push ax
+    push bx
+    push cx
+    push dx
+    mov bx, [bp+4]
+    mov cx, 28
+    clear_person_loop:
+        mov [bx], ' '
+        inc bx
+    loop clear_person_loop
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    pop bp
+    ret 2
+;clear_person end
 
 mov_data: ; param: address0, address1, len. copy from 0 to 1
     push bp
