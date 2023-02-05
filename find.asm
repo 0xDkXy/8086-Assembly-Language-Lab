@@ -54,7 +54,9 @@ count:
     je match
     loop count
     mov dx, offset ostr1
-    jmp goon
+    mov ah, 9
+    int 21h
+    jmp _finish
 match: 
     mov dx, offset ostr0
 goon:
@@ -70,6 +72,7 @@ goon:
     mov ah, 0
     push ax
     call func_print_pos
+_finish:
     mov ax, 4c00h
     int 21h
 comp_str:
